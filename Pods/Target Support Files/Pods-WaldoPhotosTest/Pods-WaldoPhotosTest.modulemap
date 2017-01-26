@@ -1,0 +1,6 @@
+framework module Pods_WaldoPhotosTest {
+  umbrella header "Pods-WaldoPhotosTest-umbrella.h"
+
+  export *
+  module * { export * }
+}
