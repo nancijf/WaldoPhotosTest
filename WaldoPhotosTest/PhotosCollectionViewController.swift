@@ -14,37 +14,57 @@ private let bearerToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nvd
 
 class PhotosCollectionViewController: UICollectionViewController {
     
-    typealias Record = AlbumQuery.Data.Album.Photo.Record
     var photoDataSource = [String?]()
     var offSetVal: Int = 50
+    var loadingPhotos: Bool = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
-//        self.collectionView!.register(UICollectionViewCell.self, forCellWithReuseIdentifier: reuseIdentifier)
-
-        let configuration = URLSessionConfiguration.default
-        configuration.httpAdditionalHeaders = ["Authorization": bearerToken]
         
-        let urlString = URL(string: "https://core-graphql.staging.waldo.photos/gql")
-        let apollo = ApolloClient(networkTransport: HTTPNetworkTransport(url: urlString!, configuration: configuration))
-        apollo.fetch(query: AlbumQuery(offset: offSetVal)) { (data, error) in
-            if let error = error { NSLog("Error while fetching query: \(error.localizedDescription)");  return }
-            if let data = data?.data {
-                if let photos = data.album?.photos?.records {
-                    let urls = photos.map { $0?.urls?[1]?.url }
-                    self.photoDataSource.append(contentsOf: urls)
-//                    print(self.photoDataSource)
-                }
-            }
-            self.collectionView?.reloadData()
-        }
+        fetchPhotoData()
     }
 
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
+    
+    func fetchPhotoData() {
+        loadingPhotos = true
+        let configuration = URLSessionConfiguration.default
+        configuration.httpAdditionalHeaders = ["Authorization": bearerToken]
+        
+        let urlString = URL(string: "https://core-graphql.staging.waldo.photos/gql")
+        let apollo = ApolloClient(networkTransport: HTTPNetworkTransport(url: urlString!, configuration: configuration))
+        apollo.fetch(query: AlbumQuery(offset: offSetVal)) { (data, error) in
+            if let error = error {
+                NSLog("Error while fetching query: \(error.localizedDescription)")
+                self.loadingPhotos = false
+                return
+            }
+            if let data = data?.data {
+                if let photos = data.album?.photos?.records {
+                    let urls = photos.map { $0?.urls?[1]?.url }
+                    self.photoDataSource.append(contentsOf: urls)
+                    print("photoDataSource: \(self.photoDataSource.count)")
+                }
+            }
+            self.collectionView?.reloadData()
+            self.loadingPhotos = false
+        }
+    }
+    
+    override func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard !loadingPhotos else { return }
+        
+        let offsetY = scrollView.contentOffset.y
+        let contentTrigger = scrollView.contentSize.height - scrollView.frame.size.height
+        if offsetY > contentTrigger && offsetY > 0 {
+            print("offSetY: \(offsetY), contentTrigger: \(contentTrigger)")
+            offSetVal += 50
+            fetchPhotoData()
+        }
+    }
 
     // MARK: UICollectionViewDataSource
 
@@ -67,53 +87,29 @@ class PhotosCollectionViewController: UICollectionViewController {
             let image: UIImage = UIImage(data: tempImage as Data)!
             DispatchQueue.main.async (execute: {
                 cell?.imageView.image = image
+                cell?.photoLabel.text = String(indexPath.item)
             })
         }
         // Configure the cell
     
         return cell!
     }
+    
 
     // MARK: UICollectionViewDelegate
 
-    /*
-    // Uncomment this method to specify if the specified item should be highlighted during tracking
-    override func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
-        return true
-    }
-    */
-
-    /*
-    // Uncomment this method to specify if the specified item should be selected
-    override func collectionView(_ collectionView: UICollectionView, shouldSelectItemAt indexPath: IndexPath) -> Bool {
-        return true
-    }
-    */
-
-    /*
-    // Uncomment these methods to specify if an action menu should be displayed for the specified item, and react to actions performed on the item
-    override func collectionView(_ collectionView: UICollectionView, shouldShowMenuForItemAt indexPath: IndexPath) -> Bool {
-        return false
-    }
-
-    override func collectionView(_ collectionView: UICollectionView, canPerformAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) -> Bool {
-        return false
-    }
-
-    override func collectionView(_ collectionView: UICollectionView, performAction action: Selector, forItemAt indexPath: IndexPath, withSender sender: Any?) {
-    
-    }
-    */
 
 }
 
 class PhotosCollectionViewCell: UICollectionViewCell {
 
     @IBOutlet weak var imageView: UIImageView!
+    @IBOutlet weak var photoLabel: UILabel!
     
     override func prepareForReuse() {
         let nothing: UIImage? = nil
-        imageView.image = nothing
+        imageView.image = nil
+        photoLabel.text = ""
     }
     
 }
