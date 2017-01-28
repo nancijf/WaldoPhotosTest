@@ -1,12 +1,15 @@
 PODS:
   - Apollo (0.4.3)
+  - ReachabilitySwift (3)
 
 DEPENDENCIES:
   - Apollo (~> 0.4.2)
+  - ReachabilitySwift (~> 3)
 
 SPEC CHECKSUMS:
   Apollo: c994e4a897d57801e0116bfd054587f0969f985b
+  ReachabilitySwift: f5b9bb30a0777fac8f09ce8b067e32faeb29bb64
 
-PODFILE CHECKSUM: ed2b7f5617a4ce10011beab56ad1a3209f46186a
+PODFILE CHECKSUM: a89be2485e99780ab1c3ed3b1e29772be9aa0416
 
 COCOAPODS: 1.1.1

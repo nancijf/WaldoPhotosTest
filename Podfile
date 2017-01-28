@@ -7,4 +7,5 @@ target 'WaldoPhotosTest' do
 
   # Pods for WaldoPhotosTest
   pod 'Apollo', '~> 0.4.2'
+  pod 'ReachabilitySwift', '~> 3'
 end
