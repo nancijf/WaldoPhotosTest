@@ -1,4 +1,5 @@
 //  This file was automatically generated and should not be edited.
+//  Uses apollo-codegen to retreive the schema and generate this file with the Graphql Query file
 
 import Apollo
 
