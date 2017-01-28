@@ -16,11 +16,9 @@ private let bearerToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nvd
 class PhotosCollectionViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
     
     var photoDataSource = [String?]()
-    var offSetVal: Int = 50
+    var offSetVal: Int = 0
     var loadingPhotos: Bool = false
     var allPhotosLoaded: Bool = false
-    var isLoading: Bool = false
-    var isDoneLoading: Bool = false
     
     lazy var flowLayout: UICollectionViewFlowLayout = {
         return self.collectionView!.collectionViewLayout as! UICollectionViewFlowLayout
@@ -41,13 +39,19 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
     var minWidth: Int = 375
     var imageCache = [String : UIImage]()
     
+    let refreshControl = UIRefreshControl()
+    
     lazy var currentDevice: UIUserInterfaceIdiom = {
         return self.traitCollection.userInterfaceIdiom
     }()
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
         
+        setupReachability()
+    }
+    
+    func setupReachability() {
         reachability.whenReachable = { [unowned self] reachability in
             self.networkIsReachable = true
         }
@@ -63,7 +67,29 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
         } catch {
             print("Unable to start notifier")
         }
+    }
+    
+    func setupRefreshControl() {
+        refreshControl.addTarget(self, action: #selector(refreshData(refreshControl:)), for: .valueChanged)
+        collectionView?.addSubview(refreshControl)
+    }
+    
+    func refreshData(refreshControl: UIRefreshControl) {
+        guard networkIsReachable else { return }
+        imageCache.removeAll()
+        photoDataSource.removeAll()
+        offSetVal = 0
+        loadingPhotos = false
+        allPhotosLoaded = false
+        collectionView?.reloadData()
+        fetchPhotoData()
+        refreshControl.endRefreshing()
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
         
+        setupRefreshControl()
         fetchPhotoData()
     }
 
