@@ -34,13 +34,6 @@
                                         <imageView userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="MEK-Zi-wmg">
                                             <rect key="frame" x="0.0" y="0.0" width="108" height="108"/>
                                         </imageView>
-                                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" fixedFrame="YES" text="" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DYT-15-Occ">
-                                            <rect key="frame" x="33" y="44" width="42" height="21"/>
-                                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
-                                            <fontDescription key="fontDescription" type="system" pointSize="17"/>
-                                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
-                                            <nil key="highlightedColor"/>
-                                        </label>
                                         <activityIndicatorView hidden="YES" opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" hidesWhenStopped="YES" style="gray" translatesAutoresizingMaskIntoConstraints="NO" id="Rqg-2F-HMj">
                                             <rect key="frame" x="44" y="44" width="20" height="20"/>
                                         </activityIndicatorView>
@@ -57,7 +50,6 @@
                                 <connections>
                                     <outlet property="activityIndicator" destination="Rqg-2F-HMj" id="8hl-CW-ZzL"/>
                                     <outlet property="imageView" destination="MEK-Zi-wmg" id="uuc-pT-BDP"/>
-                                    <outlet property="photoLabel" destination="DYT-15-Occ" id="c7i-xS-76z"/>
                                 </connections>
                             </collectionViewCell>
                         </cells>
