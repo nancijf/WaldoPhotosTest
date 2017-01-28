@@ -24,7 +24,7 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
         return self.collectionView!.collectionViewLayout as! UICollectionViewFlowLayout
     }()
     
-    var networkIsReachable: Bool = false
+    var networkIsReachable: Bool = true
     let reachability = Reachability()!
     
     var numberOfPhotos: Int {
@@ -116,7 +116,7 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
     /*
      Set up configuration for Apollo to fetch data
      Set loadingPhotos to true to stop retrieving more until completed
-     If no errors, retrieve URL for small2X for each record
+     If no errors, retrieve URL for small2X photo for each record
      Store URLs as strings in photoDataSource
     */
     func fetchPhotoData() {
@@ -138,6 +138,7 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
                 return
             }
             
+            // Access records and URLs, store in photoDataSource
             if let data = data?.data {
                 if let photos = data.album?.photos?.records, photos.count > 0 {
                     if let title = data.album?.name {
@@ -154,9 +155,23 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
                 self.allPhotosLoaded = true
             }
             
+            // Cache photos in background and reload collectionview
+            self.cachePhotos()
             self.collectionView?.reloadData()
             self.loadingPhotos = false
         }
+    }
+    
+    // Cache downloaded photos in background
+    func cachePhotos() {
+        DispatchQueue.global().async {
+            for urlString in self.photoDataSource {
+                if let urlString = urlString, let url = URL(string: urlString), let tempImage: NSData = NSData(contentsOf: url) {
+                    let image: UIImage = UIImage(data: tempImage as Data)!
+                    self.imageCache[urlString] = image
+                }
+            }
+         }
     }
     
     // Infintite scrolling: Check if scrolled to bottom of images. Retrieve more data if needed
@@ -188,25 +203,24 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
         cell?.activityIndicator.startAnimating()
         
         // Check for data then if data is already stored in cache
-        guard let url = photoDataSource[indexPath.item] else { return cell! }
-        if let image = imageCache[url] {
+        guard let urlString = photoDataSource[indexPath.item] else { return cell! }
+        if let image = imageCache[urlString] {
             cell?.imageView.image = image
             cell?.activityIndicator.stopAnimating()
         } else {
             
             // Download image data and store in cache
             DispatchQueue.global().async {
-                if let tempImage: NSData = NSData(contentsOf: URL(string: url)!) {
+                if let url = URL(string: urlString), let tempImage: NSData = NSData(contentsOf: url) {
                     let image: UIImage = UIImage(data: tempImage as Data)!
-                    self.imageCache[url] = image
+                    self.imageCache[urlString] = image
                     DispatchQueue.main.async (execute: {
                         cell?.activityIndicator.stopAnimating()
                         cell?.imageView.image = image
                     })
                 } else {
                     
-                // if image can't be downloaded, ude default image
-                    self.imageCache[url] = UIImage(named: "BrokenImage")
+                // if image can't be downloaded, use default image
                     DispatchQueue.main.async (execute: {
                         cell?.activityIndicator.stopAnimating()
                         cell?.imageView.image = UIImage(named: "BrokenImage")
