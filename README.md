@@ -1,8 +1,7 @@
 # WaldoPhotosTest
 
 Coding exercise for Waldo Photos
-  Displays infinitely scrolling view of photos retrieved using GraphQL
-  
+  Displays infinitely scrolling view of photos retrieved using GraphQL 
   Tested on iPhone 7, 7 Plus, SE and iPad Pro
 
 Uses:
