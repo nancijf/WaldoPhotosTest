@@ -84,7 +84,6 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
     }
     
     var minWidth: Int = 375
-    var imageCache = [String : UIImage]() // Used a dictionary for image cache. NSCache would clear when lost network connection
     
     let refreshControl = UIRefreshControl()
     
