@@ -13,12 +13,59 @@ import ReachabilitySwift
 private let reuseIdentifier = "imageViewCell"
 private let bearerToken = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoiMmEyODQ4M2YtNWM2Yi00ZWU5LWE4YjUtYzFlMGU5NWUwYTY5Iiwicm9sZXMiOlsiYWRtaW5pc3RyYXRvciJdLCJpc3MiOiJ3YWxkbzpjb3JlIiwiZ3JhbnRzIjpbImFsYnVtczpkZWxldGU6KiIsImFsYnVtczpjcmVhdGU6KiIsImFsYnVtczplZGl0OioiLCJhbGJ1bXM6dmlldzoqIl0sImV4cCI6MTQ4Nzk3OTExMywiaWF0IjoxNDg1Mzg3MTEzfQ.3i4KWxNyCyGiKr2a1cWPbHAWSISDOg3ch8zOruY5Abg"
 
+enum PhotoRecordState {
+    case new, downloaded, failed
+}
+
+class PhotoRecord {
+    let url: String
+    var state: PhotoRecordState = .new
+    var image: UIImage?
+    
+    init(url: String) {
+        self.url = url
+    }
+}
+
+class PendingOperations {
+    lazy var downloadsInProgress = [IndexPath:Operation]()
+    lazy var downloadQueue: OperationQueue = {
+        var queue = OperationQueue()
+        queue.name = "Download"
+        return queue
+    }()
+}
+
+class ImageDownloader: Operation {
+    let photoRecord: PhotoRecord
+    
+    init(photoRecord: PhotoRecord) {
+        self.photoRecord = photoRecord
+    }
+    
+    override func main() {
+        if self.isCancelled { return }
+        if let photoURL = URL(string: photoRecord.url), let tempImage: NSData = NSData(contentsOf: photoURL) {
+            guard !self.isCancelled else { return }
+            let image: UIImage = UIImage(data: tempImage as Data)!
+            self.photoRecord.image = image
+            self.photoRecord.state = .downloaded
+        } else {
+            self.photoRecord.image = UIImage(named: "BrokenImage")
+            self.photoRecord.state = .failed
+        }
+    }
+}
+
+
 class PhotosCollectionViewController: UICollectionViewController, UICollectionViewDelegateFlowLayout {
     
-    var photoDataSource = [String?]()
+    var photoDataSource = [PhotoRecord]()
     var offSetVal: Int = 0
     var loadingPhotos: Bool = false
     var allPhotosLoaded: Bool = false
+    
+    let pendingOperations = PendingOperations()
     
     lazy var flowLayout: UICollectionViewFlowLayout = {
         return self.collectionView!.collectionViewLayout as! UICollectionViewFlowLayout
@@ -80,7 +127,6 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
     // Can refresh data after lose/regain network connection
     func refreshData(refreshControl: UIRefreshControl) {
         guard networkIsReachable else { return }
-        imageCache.removeAll()
         photoDataSource.removeAll()
         offSetVal = 0
         loadingPhotos = false
@@ -100,7 +146,6 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         
-        self.imageCache.removeAll() // Clear image cache if memory low
     }
     
     deinit {
@@ -146,8 +191,10 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
                     } else {
                         self.navigationItem.title = "Photo Album Viewer"
                     }
-                    let urls = photos.map { $0?.urls?[1]?.url }
-                    self.photoDataSource.append(contentsOf: urls)
+                    for photo in photos {
+                        let photoRecord = PhotoRecord(url: (photo?.urls?[1]?.url)!)
+                        self.photoDataSource.append(photoRecord)
+                    }
                 } else {
                     self.allPhotosLoaded = true
                 }
@@ -155,24 +202,31 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
                 self.allPhotosLoaded = true
             }
             
-            // Cache photos in background and reload collectionview
-            self.cachePhotos()
             self.collectionView?.reloadData()
             self.loadingPhotos = false
         }
     }
     
-    // Cache downloaded photos in background
-    func cachePhotos() {
-        DispatchQueue.global().async {
-            for urlString in self.photoDataSource {
-                if let urlString = urlString, let url = URL(string: urlString), let tempImage: NSData = NSData(contentsOf: url) {
-                    let image: UIImage = UIImage(data: tempImage as Data)!
-                    self.imageCache[urlString] = image
-                }
+    func startDownloadForPhotoRecord(_ photoRecord: PhotoRecord, indexPath: IndexPath) {
+        if let _ = pendingOperations.downloadsInProgress[indexPath] {
+            return
+        }
+        
+        let downloader = ImageDownloader(photoRecord: photoRecord)
+        
+        downloader.completionBlock = {
+            if downloader.isCancelled {
+                return
             }
-         }
+            OperationQueue.main.addOperation {
+                self.pendingOperations.downloadsInProgress.removeValue(forKey: indexPath)
+                self.collectionView?.reloadItems(at: [indexPath])
+            }
+        }
+        pendingOperations.downloadsInProgress[indexPath] = downloader
+        pendingOperations.downloadQueue.addOperation(downloader)
     }
+
     
     // Infintite scrolling: Check if scrolled to bottom of images. Retrieve more data if needed
     override func scrollViewDidScroll(_ scrollView: UIScrollView) {
@@ -202,33 +256,19 @@ class PhotosCollectionViewController: UICollectionViewController, UICollectionVi
         // Start indicator to show loading photos
         cell?.activityIndicator.startAnimating()
         
-        // Check for data then if data is already stored in cache
-        guard let urlString = photoDataSource[indexPath.item] else { return cell! }
-        if let image = imageCache[urlString] {
-            cell?.imageView.image = image
+        let photoRecord = photoDataSource[indexPath.row]
+        cell?.imageView.image = photoRecord.image
+        
+        switch photoRecord.state {
+        case .failed:
             cell?.activityIndicator.stopAnimating()
-        } else {
-            
-            // Download image data and store in cache
-            DispatchQueue.global().async {
-                if let url = URL(string: urlString), let tempImage: NSData = NSData(contentsOf: url) {
-                    let image: UIImage = UIImage(data: tempImage as Data)!
-                    self.imageCache[urlString] = image
-                    DispatchQueue.main.async (execute: {
-                        cell?.activityIndicator.stopAnimating()
-                        cell?.imageView.image = image
-                    })
-                } else {
-                    
-                // if image can't be downloaded, use default image
-                    DispatchQueue.main.async (execute: {
-                        cell?.activityIndicator.stopAnimating()
-                        cell?.imageView.image = UIImage(named: "BrokenImage")
-                    })
-                }
-            }
+            break
+        case .new:
+            self.startDownloadForPhotoRecord(photoRecord, indexPath: indexPath)
+        case .downloaded:
+            cell?.activityIndicator.stopAnimating()
         }
-    
+
         return cell!
     }
  
